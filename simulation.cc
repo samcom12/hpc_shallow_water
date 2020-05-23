@@ -32,7 +32,8 @@ void Simulation::save_results() {
     filename = filename.substr(0, filename.find(".") + 2);
     filename = "../data/Solution_nx" + to_string(nx) + "_" + to_string(size) + "km_T" + filename + "_h.bin";
 
-    h.current().write_file(filename);
+    Grid & ht = h.old();
+    ht.write_file(filename);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -45,9 +46,9 @@ int Simulation::compute() {
       hu.swap();
       hv.swap();
       ++nt;
-      save_results();
   }
 
+  save_results();
   return nt;
 }
 
@@ -63,7 +64,7 @@ void Simulation::boundary_conditions() {
     Grid & hvt = hv.old();
     Grid & hut = hu.old();
 
-    for (auto i = 0; i < nx; i++) {
+    for (auto i = 1; i < nx - 1; i++) {
         ht(0, i) = ht(1, i);
         ht(nx - 1, i) = ht(nx - 2, i);
         ht(i, 0) = ht(i, 1);
@@ -79,6 +80,21 @@ void Simulation::boundary_conditions() {
         hut(i, 0) = hut(i, 1);
         hut(i, nx - 1) = hut(i, nx - 2);
     }
+
+    ht(0, 0) = ht(1, 1);
+    ht(0, nx - 1) = ht(1, nx - 2);
+    ht(nx - 1, 0) = ht(nx - 2, 1);
+    ht(nx - 1, nx - 1) = ht(nx - 2, nx - 2);
+
+    hvt(0, 0) = hvt(1, 1);
+    hvt(0, nx - 1) = hvt(1, nx - 2);
+    hvt(nx - 1, 0) = hvt(nx - 2, 1);
+    hvt(nx - 1, nx - 1) = hvt(nx - 2, nx - 2);
+
+    hut(0, 0) = hut(1, 1);
+    hut(0, nx - 1) = hut(1, nx - 2);
+    hut(nx - 1, 0) = hut(nx - 2, 1);
+    hut(nx - 1, nx - 1) = hut(nx - 2, nx - 2);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -117,7 +133,7 @@ void Simulation::compute_step() {
     for (auto i = 1; i < nx - 1; i++) {
         for (auto j = 1; j < nx - 1; j++) {
             ht(i, j) = 0.25 * (ho(i, j + 1) + ho(i, j - 1) + ho(i + 1, j) + ho(i - 1, j)) +
-                       C * (huo(i, j - 1) - huo(i, j + 1) + hvo(i - 1, j) - huo(i + 1, j));
+                       C * (huo(i, j - 1) - huo(i, j + 1) + hvo(i - 1, j) - hvo(i + 1, j));
 
             hut(i, j) = 0.25 * (huo(i, j - 1) + huo(i, j + 1) + huo(i - 1, j) + huo(i + 1, j)) -
                         dt * g * ht(i, j) * zdx(i, j) +
@@ -138,7 +154,7 @@ void Simulation::compute_step() {
         }
     }
 
-    // Impose tolerances
+    // Impose tolerances 4.518828244219620
     for (auto i = 1; i < nx - 1; i++) {
         for (auto j = 1; j < nx - 1; j++) {
             if (ht(i, j) < 0)

@@ -20,8 +20,8 @@ public:
   void write_file(string filename);
 
   /// access the value [i][j] of the grid
-  inline float & operator()(int i, int j) { return m_storage[i * nx + j]; }
-  inline const float & operator()(int i, int j) const {
+  inline double & operator()(int i, int j) { return m_storage[i * nx + j]; }
+  inline const double & operator()(int i, int j) const {
     return m_storage[i * nx + j];
   }
 
@@ -33,7 +33,7 @@ public:
 
 private:
   int nx, ny;
-  std::vector<float> m_storage;
+  std::vector<double> m_storage;
 };
 
 #endif /* GRID_HH */

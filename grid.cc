@@ -28,22 +28,23 @@ void Grid::read_file(string filename)
     double* values = (double*)memblock;
     for (auto i = 0; i < ny; i++)
         for (auto j = 0; j < nx; j++)
-            m_storage[i * nx + j] = values[i * nx + j];
+            m_storage[i * nx + j] = values[j * nx + i];
 }
 
 /* -------------------------------------------------------------------------- */
 void Grid::write_file(string filename)
 {
     // open file
-    std::ofstream file(filename, std::ios::out | std::ios::binary | std::ios::app);
+    std::ofstream file(filename, std::ios::out | std::ios::binary);
 
     // write data to file
     for (auto i = 0; i < ny; i++)
         for (auto j = 0; j < nx; j++)
-            file.write(reinterpret_cast<const char*>(&m_storage[i * nx + j]), sizeof(m_storage[i * nx + j]));
+            file.write((char*)(&m_storage[j * nx + i]), sizeof(double));
 
     file.close();
 }
+
 /* -------------------------------------------------------------------------- */
 void Grid::clear() { std::fill(m_storage.begin(), m_storage.end(), 0.); }
 

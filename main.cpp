@@ -17,12 +17,11 @@ int main() {
     int T = 0, nt = 0;
     double max_hu, max_hv, mu = 0, dt;
 
+
     Simulation simu(nx, Size, Tend);
     simu.set_initial_conditions();
     const clock_t begin_time = clock();
     simu.compute();
-    // Save solution to disk
-
     double time = (double)(clock() - begin_time) / CLOCKS_PER_SEC;
 
     // Communicate time-to-compute
