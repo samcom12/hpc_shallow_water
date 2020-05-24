@@ -133,24 +133,24 @@ void Simulation::compute_step() {
     for (auto i = 1; i < nx - 1; i++) {
         for (auto j = 1; j < nx - 1; j++) {
             ht(i, j) = 0.25 * (ho(i, j + 1) + ho(i, j - 1) + ho(i + 1, j) + ho(i - 1, j)) +
-                       C * (huo(i, j - 1) - huo(i, j + 1) + hvo(i - 1, j) - hvo(i + 1, j));
+                       C * (huo(i - 1, j) - huo(i + 1, j) + hvo(i, j - 1) - hvo(i, j + 1));
 
             hut(i, j) = 0.25 * (huo(i, j - 1) + huo(i, j + 1) + huo(i - 1, j) + huo(i + 1, j)) -
                         dt * g * ht(i, j) * zdx(i, j) +
-                        C * (huo(i, j - 1) * huo(i, j - 1) / ho(i, j - 1) +
-                             0.5 * g * ho(i, j - 1) * ho(i, j - 1) -
-                             huo(i, j + 1) * huo(i, j + 1) / ho(i, j + 1) -
-                             0.5 * g * ho(i, j + 1) * ho(i, j + 1)) +
-                        C * (huo(i - 1, j) * hvo(i - 1, j) / ho(i - 1, j) -
-                             huo(i + 1, j) * hvo(i + 1, j) / ho(i + 1, j));
-            hvt(i, j) = 0.25 * (hvo(i, j - 1) + hvo(i, j + 1) + hvo(i - 1, j) + hvo(i + 1, j)) -
-                        dt * g * ht(i, j) * zdy(i, j) +
-                        C * (hvo(i - 1, j) * hvo(i - 1, j) / ho(i - 1, j) +
+                        C * (huo(i - 1, j) * huo(i - 1, j) / ho(i - 1, j) +
                              0.5 * g * ho(i - 1, j) * ho(i - 1, j) -
-                             hvo(i + 1, j) * hvo(i + 1, j) / ho(i + 1, j) -
+                             huo(i + 1, j) * huo(i + 1, j) / ho(i + 1, j) -
                              0.5 * g * ho(i + 1, j) * ho(i + 1, j)) +
                         C * (huo(i, j - 1) * hvo(i, j - 1) / ho(i, j - 1) -
                              huo(i, j + 1) * hvo(i, j + 1) / ho(i, j + 1));
+            hvt(i, j) = 0.25 * (hvo(i, j - 1) + hvo(i, j + 1) + hvo(i - 1, j) + hvo(i + 1, j)) -
+                        dt * g * ht(i, j) * zdy(i, j) +
+                        C * (hvo(i, j - 1) * hvo(i, j - 1) / ho(i, j - 1) +
+                             0.5 * g * ho(i, j - 1) * ho(i, j - 1) -
+                             hvo(i, j + 1) * hvo(i, j + 1) / ho(i, j + 1) -
+                             0.5 * g * ho(i, j + 1) * ho(i, j + 1)) +
+                        C * (huo(i - 1, j) * hvo(i - 1, j) / ho(i - 1, j) -
+                             huo(i + 1, j) * hvo(i + 1, j) / ho(i + 1, j));
         }
     }
 

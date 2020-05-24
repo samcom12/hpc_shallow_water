@@ -28,7 +28,7 @@ void Grid::read_file(string filename)
     double* values = (double*)memblock;
     for (auto i = 0; i < ny; i++)
         for (auto j = 0; j < nx; j++)
-            m_storage[i * nx + j] = values[j * nx + i];
+            m_storage[i * nx + j] = values[i * nx + j];
 }
 
 /* -------------------------------------------------------------------------- */
@@ -40,7 +40,7 @@ void Grid::write_file(string filename)
     // write data to file
     for (auto i = 0; i < ny; i++)
         for (auto j = 0; j < nx; j++)
-            file.write((char*)(&m_storage[j * nx + i]), sizeof(double));
+            file.write((char*)(&m_storage[i * nx + j]), sizeof(double));
 
     file.close();
 }
