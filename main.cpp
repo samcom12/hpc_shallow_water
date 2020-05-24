@@ -21,7 +21,7 @@ int main() {
     Simulation simu(nx, Size, Tend);
     simu.set_initial_conditions();
     const clock_t begin_time = clock();
-    simu.compute();
+    nt = simu.compute();
     double time = (double)(clock() - begin_time) / CLOCKS_PER_SEC;
 
     // Communicate time-to-compute
