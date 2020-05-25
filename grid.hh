@@ -6,12 +6,15 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <mpi.h>
 /* -------------------------------------------------------------------------- */
-using std::string, std::ifstream, std::ios;
+using std::string;
+using std::ifstream;
+using std::ios;
 
 class Grid {
 public:
-  Grid(int m, int n);
+  Grid(int m, int n, MPI_Comm communicator_);
 
   /// read values from binary file
   void read_file(string filename);
@@ -25,6 +28,8 @@ public:
     return m_storage[i * nx + j];
   }
 
+  void resize(int m, int n);
+
   /// set the grid to 0
   void clear();
 
@@ -32,8 +37,9 @@ public:
   int get_ny() const;
 
 private:
-  int nx, ny;
+  int ny, nx;
   std::vector<double> m_storage;
+  MPI_Comm communicator;
 };
 
 #endif /* GRID_HH */

@@ -9,8 +9,9 @@
 
 class DoubleBuffer {
 public:
-  DoubleBuffer(int m, int n);
+  DoubleBuffer(int m, int n, MPI_Comm communicator_);
 
+  void resize(int m, int n);
   Grid & current();
   Grid & old();
 

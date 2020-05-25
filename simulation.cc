@@ -4,20 +4,53 @@
 #include <cmath>
 #include <iostream>
 #include <string>
+#include <algorithm>
 /* -------------------------------------------------------------------------- */
-using std::to_string, std::max, std::cout;
+using std::to_string;
+using std::max;
+using std::cout;
 /* -------------------------------------------------------------------------- */
-Simulation::Simulation(int nx_, double size_, double tend_)
-    : nx(nx_), size(size_), epsilon(1e-4), dx(size_ / nx_),
-      h(nx_, nx_), hu(nx_, nx_), hv(nx_, nx_), zdx(nx_, nx_), zdy(nx_, nx_),
-      Tend(tend_) {}
+Simulation::Simulation(int nx_, double size_, double tend_, MPI_Comm communicator_)
+    : nx(nx_), size(size_), dx(size_ / nx_), Tend(tend_), epsilon(1e-4),
+      h(nx_, nx_, communicator_), hu(nx_, nx_, communicator_), hv(nx_, nx_, communicator_),
+      zdx(nx_, nx_, communicator_), zdy(nx_, nx_, communicator_),
+      communicator(communicator_){
+
+    // retrieving the number of proc and the rank in the proc pool
+    MPI_Comm_rank(communicator, &prank);
+    MPI_Comm_size(communicator, &psize);
+
+    // computation of the local size of the grid the remainder is spread equally
+    // on the first processors
+    local_ny = nx / psize + (prank < nx % psize ? 1 : 0);
+    local_nx = nx;
+
+    // adding the ghosts lines if needed
+    if (psize > 1)
+        local_ny += (prank == 0 || prank == psize - 1) ? 1 : 2;
+
+    // computing the offsets of the local grid in the global one
+    offset_y = (nx / psize) * prank + (prank < nx % psize ? prank : nx % psize);
+    offset_x = 0;
+
+    // resizing the different grids
+    h.resize(local_ny, local_nx);
+    hu.resize(local_ny, local_nx);
+    hv.resize(local_ny, local_nx);
+    zdx.resize(local_ny, local_nx);
+    zdy.resize(local_ny, local_nx);
+
+    // determining the rank of the neighbors
+    north_prank = (prank == 0 ? MPI_PROC_NULL : prank - 1);
+    south_prank = (prank == (psize - 1) ? MPI_PROC_NULL : prank + 1);
+    std::cout << prank << " " << nx << " " << nx << " "
+               << local_ny << " " << local_nx << " " << offset_y << " "
+               << offset_x << " " << north_prank << " " << south_prank
+               << std::endl;
+}
 
 /* -------------------------------------------------------------------------- */
-void Simulation::set_initial_conditions() {
-    auto filename = to_string(Tend);
-    filename = filename.substr(0, filename.find(".") + 2);
-    filename = "../data/Data_nx" + to_string(nx) + "_" + to_string(size) + "km_T" + filename;
-
+void Simulation::set_initial_conditions(std::string filename) {
     h.old().read_file(filename + "_h.bin");
     hu.old().read_file(filename + "_hu.bin");
     hv.old().read_file(filename + "_hv.bin");
@@ -30,7 +63,7 @@ void Simulation::set_initial_conditions() {
 void Simulation::save_results() {
     auto filename = to_string(Tend);
     filename = filename.substr(0, filename.find(".") + 2);
-    filename = "../data/Solution_nx" + to_string(nx) + "_" + to_string(size) + "km_T" + filename + "_h.bin";
+    filename = "./data/Solution_nx" + to_string(nx) + "_" + to_string(size) + "km_T" + filename + "_h.bin";
 
     Grid & ht = h.old();
     ht.write_file(filename);
@@ -60,54 +93,97 @@ double Simulation::treshold() const { return epsilon; }
 
 /* -------------------------------------------------------------------------- */
 void Simulation::boundary_conditions() {
+    int prank, psize;
+    MPI_Comm_rank(communicator, &prank);
+    MPI_Comm_size(communicator, &psize);
+
+
+    int height = local_ny;
+    int width = local_nx;
+
+    int start = 0;
+
+    // removing the ghosts from the height
+    if (psize > 1) {
+        height = (prank == 0 || prank == psize - 1 ? height - 1 : height - 2);
+        start = (prank == 0 ? 0 : 1);
+    }
+
     Grid & ht = h.old();
     Grid & hvt = hv.old();
     Grid & hut = hu.old();
 
-    for (auto i = 1; i < nx - 1; i++) {
-        ht(0, i) = ht(1, i);
-        ht(nx - 1, i) = ht(nx - 2, i);
+    for (auto i = start; i < start + height; i++) {
         ht(i, 0) = ht(i, 1);
         ht(i, nx - 1) = ht(i, nx - 2);
 
-        hvt(0, i) = hvt(1, i);
-        hvt(nx - 1, i) = hvt(nx - 2, i);
         hvt(i, 0) = hvt(i, 1);
         hvt(i, nx - 1) = hvt(i, nx - 2);
 
-        hut(0, i) = hut(1, i);
-        hut(nx - 1, i) = hut(nx - 2, i);
         hut(i, 0) = hut(i, 1);
         hut(i, nx - 1) = hut(i, nx - 2);
     }
 
-    ht(0, 0) = ht(1, 1);
-    ht(0, nx - 1) = ht(1, nx - 2);
-    ht(nx - 1, 0) = ht(nx - 2, 1);
-    ht(nx - 1, nx - 1) = ht(nx - 2, nx - 2);
+    if (prank == 0) {
+        for (auto i = 0; i < nx; i++) {
+            ht(0, i) = ht(1, i);
+            hvt(0, i) = hvt(1, i);
+            hut(0, i) = hut(1, i);
+        }
+    }
 
-    hvt(0, 0) = hvt(1, 1);
-    hvt(0, nx - 1) = hvt(1, nx - 2);
-    hvt(nx - 1, 0) = hvt(nx - 2, 1);
-    hvt(nx - 1, nx - 1) = hvt(nx - 2, nx - 2);
-
-    hut(0, 0) = hut(1, 1);
-    hut(0, nx - 1) = hut(1, nx - 2);
-    hut(nx - 1, 0) = hut(nx - 2, 1);
-    hut(nx - 1, nx - 1) = hut(nx - 2, nx - 2);
+    if (prank == psize - 1) {
+        for (auto i = 0; i < nx; i++) {
+            ht(local_ny - 1, i) = ht(local_ny - 2, i);
+            hvt(local_ny - 1, i) = hvt(local_ny - 2, i);
+            hut(local_ny - 1, i) = hut(local_ny - 2, i);
+        }
+    }
 }
 
 /* -------------------------------------------------------------------------- */
 void Simulation::compute_step() {
     double g = 127267.2; // Gravity, 9.82*(3.6)^2*1000 in [km / hr^2]
 
-    double max_hu, max_hv, mu = 0, dt, C;
+    int prank, psize;
+    MPI_Comm_rank(communicator, &prank);
+    MPI_Comm_size(communicator, &psize);
+
+    int height = local_ny;
+    int width = local_nx;
+
+    int start = 0;
+
+    // removing the ghosts from the height
+    if (psize > 1) {
+        height = (prank == 0 || prank == psize - 1 ? height - 1 : height - 2);
+        start = (prank == 0 ? 0 : 1);
+    }
+
+    // Gathering the size of every processors, this could be done as in the
+    // constructor of the Simulation instead
+    std::vector<int> size_per_proc(psize);
+    MPI_Allgather(&height, 1, MPI_INT, size_per_proc.data(), 1, MPI_INT, communicator);
+
+    // determining the local offset
+    int offset_h = 0;
+    for (int i = 0; i < prank; ++i) {
+        offset_h += size_per_proc[i];
+    }
+
+    int total_h = offset_h;
+    for (int i = prank; i < psize; ++i) {
+        total_h += size_per_proc[i];
+    }
+
+    double max_hu, max_hv, mu = 0, dt = 0, C;
 
     Grid &ho = h.old(), &hvo = hv.old(), &huo = hu.old();
     Grid &ht = h.current(), &hvt = hv.current(), &hut = hu.current();
 
+
     // Compute the time-step length
-    for (auto i = 0; i < nx; i++) {
+    for (auto i = start; i < start + height; i++) {
         for (auto j = 0; j < nx; j++) {
             max_hu = max(abs(huo(i, j) / ho(i, j) + sqrt(ho(i, j) * g)),
                          abs(huo(i, j) / ho(i, j) - sqrt(ho(i, j) * g)));
@@ -117,24 +193,72 @@ void Simulation::compute_step() {
         }
     }
 
+    std::vector<double> mu_vec(psize);
+    MPI_Allgather(&mu, 1, MPI_DOUBLE, mu_vec.data(), 1, MPI_DOUBLE, communicator);
+    mu = *std::max_element(mu_vec.begin(), mu_vec.end());
     dt = dx / (sqrt(2) * mu);
 
     if (T + dt > Tend)
         dt = Tend - T;
 
-    // Print status
-    cout << "Computing T: " << T + dt << ". " << 100 * (T + dt) / Tend << "%\n";
+    if (prank == 0){
+        // Print status
+        cout << "Computing T: " << T + dt << ". " << 100 * (T + dt) / Tend << "%\n";
+    }
 
     // Enforce boundary condition
     boundary_conditions();
 
+    // Taking care of communications going up (so receiving from bottom)
+    MPI_Sendrecv(&ho(1, 0), nx, MPI_DOUBLE, north_prank, 0,
+                 &ho(local_ny - 1, 0), nx, MPI_DOUBLE, south_prank, 0,
+                 communicator, MPI_STATUS_IGNORE);
+
+    // Taking care of communications going down (so receiving from top)
+    MPI_Sendrecv(&ho(local_ny - 2, 0), nx, MPI_DOUBLE, south_prank, 0,
+                 &ho(0, 0), nx, MPI_DOUBLE, north_prank, 0,
+                 communicator, MPI_STATUS_IGNORE);
+
+    // Taking care of communications going up (so receiving from bottom)
+    MPI_Sendrecv(&huo(1, 0), nx, MPI_DOUBLE, north_prank, 0,
+                 &huo(local_ny - 1, 0), nx, MPI_DOUBLE, south_prank, 0,
+                 communicator, MPI_STATUS_IGNORE);
+
+    // Taking care of communications going down (so receiving from top)
+    MPI_Sendrecv(&huo(local_ny - 2, 0), nx, MPI_DOUBLE, south_prank, 0,
+                 &huo(0, 0), nx, MPI_DOUBLE, north_prank, 0,
+                 communicator, MPI_STATUS_IGNORE);
+
+    // Taking care of communications going up (so receiving from bottom)
+    MPI_Sendrecv(&hvo(1, 0), nx, MPI_DOUBLE, north_prank, 0,
+                 &hvo(local_ny - 1, 0), nx, MPI_DOUBLE, south_prank, 0,
+                 communicator, MPI_STATUS_IGNORE);
+
+    // Taking care of communications going down (so receiving from top)
+    MPI_Sendrecv(&hvo(local_ny - 2, 0), nx, MPI_DOUBLE, south_prank, 0,
+                 &hvo(0, 0), nx, MPI_DOUBLE, north_prank, 0,
+                 communicator, MPI_STATUS_IGNORE);
+
     // Compute a time-step
     C = 0.5 * dt / dx;
-    for (auto i = 1; i < nx - 1; i++) {
+    for (auto i = 1; i < local_ny - 1; i++)
         for (auto j = 1; j < nx - 1; j++) {
             ht(i, j) = 0.25 * (ho(i, j + 1) + ho(i, j - 1) + ho(i + 1, j) + ho(i - 1, j)) +
                        C * (huo(i - 1, j) - huo(i + 1, j) + hvo(i, j - 1) - hvo(i, j + 1));
+        }
 
+    // Taking care of communications going up (so receiving from bottom)
+    MPI_Sendrecv(&ht(1, 0), nx, MPI_DOUBLE, north_prank, 0,
+                 &ht(local_ny - 1, 0), nx, MPI_DOUBLE, south_prank, 0,
+                 communicator, MPI_STATUS_IGNORE);
+
+    // Taking care of communications going down (so receiving from top)
+    MPI_Sendrecv(&ht(local_ny - 2, 0), nx, MPI_DOUBLE, south_prank, 0,
+                 &ht(0, 0), nx, MPI_DOUBLE, north_prank, 0,
+                 communicator, MPI_STATUS_IGNORE);
+
+    for (auto i = 1; i < local_ny - 1; i++)
+        for (auto j = 1; j < nx - 1; j++) {
             hut(i, j) = 0.25 * (huo(i, j - 1) + huo(i, j + 1) + huo(i - 1, j) + huo(i + 1, j)) -
                         dt * g * ht(i, j) * zdx(i, j) +
                         C * (huo(i - 1, j) * huo(i - 1, j) / ho(i - 1, j) +
@@ -152,10 +276,9 @@ void Simulation::compute_step() {
                         C * (huo(i - 1, j) * hvo(i - 1, j) / ho(i - 1, j) -
                              huo(i + 1, j) * hvo(i + 1, j) / ho(i + 1, j));
         }
-    }
 
-    // Impose tolerances 4.518828244219620
-    for (auto i = 1; i < nx - 1; i++) {
+    // Impose tolerances
+    for (auto i = start; i < start + height; i++) {
         for (auto j = 1; j < nx - 1; j++) {
             if (ht(i, j) < 0)
                 ht(i, j) = epsilon / 10;
