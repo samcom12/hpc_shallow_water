@@ -17,18 +17,24 @@ Build
 ====
 To compile serial version:
 
+```
 cd serial
 make
+```
 
 To compile MPI version:
-	
+
+```
 cd MPI
-make 
+make
+```
 	
 To compile CUDA version:
 
+```
 cd CUDA      
 make
+```
 
 Run
 ====
