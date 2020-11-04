@@ -63,7 +63,7 @@ void Simulation::set_initial_conditions(std::string filename) {
 void Simulation::save_results() {
     auto filename = to_string(Tend);
     filename = filename.substr(0, filename.find(".") + 2);
-    filename = "./data/Solution_nx" + to_string(nx) + "_" + to_string(size) + "km_T" + filename + "_h.bin";
+    filename = "Solution_nx" + to_string(nx) + "_" + to_string(size) + "km_T" + filename + "_h.bin";
 
     Grid & ht = h.old();
     ht.write_file(filename);

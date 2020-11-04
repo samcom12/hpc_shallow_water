@@ -16,9 +16,13 @@ int main(int argc, char * argv[]) {
     double Tend = 0.20;  // Simulation time in hours [hr]
     int nt = 0;
 
+    if (argc == 2) {
+        nx = atoi(argv[1]);
+    }
+
     auto filename = to_string(Tend);
     filename = filename.substr(0, filename.find(".") + 2);
-    filename = "./data/Data_nx" + to_string(nx) + "_" + to_string(Size) + "km_T" + filename;
+    filename = "../data/Data_nx" + to_string(nx) + "_" + to_string(Size) + "km_T" + filename;
 
     MPI_Init(&argc, &argv);
     int prank, psize;
