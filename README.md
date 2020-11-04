@@ -11,34 +11,24 @@ Requirements
 Data
 ====
 
-The data must be downloaded from [here](https://drive.switch.ch/index.php/s/7QFOGwphJun6mln). Data folder should be in a project folder.
+The data files can be downloaded from [here](https://drive.switch.ch/index.php/s/7QFOGwphJun6mln). Data folder should be located in a project folder.
 
 Build
 ====
-Compile serial version on `fidis`:
+To compile serial version:
 
-```
 cd serial
-module load intel
 make
-```
 
-Compile MPI version on `fidis`:
+To compile MPI version:
 	
-```
 cd MPI
-module load intel intel-mpi
 make 
-```
 	
-Compile CUDA version on `deneb{1,2}`:
+To compile CUDA version:
 
-```
-cd CUDA
-slmodules -s x86_E5v2_Mellanox_GPU
-module load gcc cuda       
+cd CUDA      
 make
-```
 
 Run
 ====
